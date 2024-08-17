@@ -30,8 +30,8 @@ bool capture = false;
 std::string Model_fragmentShaderPath = std::string(SHADER_DIR) + "/model_frag.glsl";
 std::string Model_VertexShaderPath   = std::string(SHADER_DIR) + "/model_vert.glsl";
 
-std::string Shadow_Mapping_Frag_Path = std::string(SHADER_DIR) + "/Shadows/shadow_map_frag.glsl";
-std::string Shadow_Mapping_Vert_Path = std::string(SHADER_DIR) + "/Shadows/shadow_map_vert.glsl";
+std::string Shadow_Mapping_Frag_Path = std::string(SHADER_DIR) + "/shadow_map_frag.glsl";
+std::string Shadow_Mapping_Vert_Path = std::string(SHADER_DIR) + "/shadow_map_vert.glsl";
 
 
 std::string Phong_lightingPath = std::string(SHADER_DIR) + "/Phong_Lighting.glsl";
@@ -46,7 +46,7 @@ std::string Model_Spherepath = std::string(MODELS_DIR) + "/Sphere.obj";
 std::string Model_CubePath = std::string(MODELS_DIR) + "/cube.obj";
 
 
-glm::vec3 lightPos(0,2,0);  
+glm::vec3 lightPos(5.0f, 10.0f, 5.0f);
 glm::vec3 lightColor(1,1,1);
 glm::vec3 objectColor(1.0,1.0,1.0); // Floor color please change the variable name 
 glm::vec3 sphereColor(0.0f,0.0f,1.0f);
@@ -98,6 +98,9 @@ void renderSoftBodyXPBD(const SoftBodyXPBD& softBody, Model& model, Shader& shad
     model.Draw(shader);
 }
 
+
+
+
 unsigned int floorVAO, floorVBO, floorEBO;
 Shader* floorShader;
 void setupFloor()
@@ -129,7 +132,70 @@ void setupFloor()
     floorShader = new Shader(Floor_VertexPath, Phong_lightingPath);
 }
 
+Shader* ShadowMapDepth;
+const unsigned int SHADOW_HEIGHT = 2024, SHADOW_WIDTH = 2024;
+unsigned int DepthMapFBO;
+unsigned int depthMap;
+void setupShadowMap() {
+    // Create framebuffer object for rendering depth map
+    glGenFramebuffers(1, &DepthMapFBO);
 
+    // Create depth texture
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, 
+                 SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+    // Attach depth texture as FBO's depth buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, DepthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Check if framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Framebuffer not complete!" << std::endl;
+
+    // Create and compile the depth map shader
+    ShadowMapDepth = new Shader(Shadow_Mapping_Vert_Path, Shadow_Mapping_Frag_Path);
+}
+
+void renderScene(Shader* shader, SoftBodyXPBD& XPBD, Model& ourModel)
+{
+    // Render the soft body
+    glm::mat4 model = glm::mat4(1.0f);
+    shader->setMat4("model", model);
+    renderSoftBodyXPBD(XPBD, ourModel, *shader);
+
+    // Render the floor
+    model = glm::mat4(1.0f);
+    shader->setMat4("model", model);
+    glBindVertexArray(floorVAO);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
+void renderSceneMain(Shader* shader,SoftBodyXPBD& XPBD,Model& ourModel)
+{
+    // Render the soft body
+    glm::mat4 model = glm::mat4(1.0f);
+    shader->setMat4("model", model);
+    renderSoftBodyXPBD(XPBD, ourModel ,*shader);
+    // Render the floor
+    model = glm::mat4(1.0f);
+    shader->setMat4("model", model);
+    glBindVertexArray(floorVAO);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+    // If you have other objects in your scene that should cast shadows,
+    // render them here as well
+}
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -140,11 +206,11 @@ void processInput(GLFWwindow *window, SoftBodyXPBD& sim);
 
 
 // settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+ unsigned int SCR_WIDTH = 800;
+ unsigned int SCR_HEIGHT = 600;
 
 // camera
-Camera camera(glm::vec3(0.0f, 1.0f, 3.0f));
+Camera camera(glm::vec3(0.0f, 1.0f, 7.0f));
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -169,7 +235,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "XPBD/PBD", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -244,7 +310,7 @@ int main()
     // SoftBodyPBD SoftBody(ourModel);
 
     // Set XPBD
-    float n = 60;
+    float n = 90;
     float dt = 1.0f / n;// 60 fps 
     float it = 20;
 
@@ -267,7 +333,7 @@ int main()
     float shape = 0.5f;
 
 
-
+    setupShadowMap();
     while (!glfwWindowShouldClose(window))
     {
         ImGui_ImplOpenGL3_NewFrame();
@@ -327,23 +393,39 @@ int main()
         processInput(window,XPBD_SoftBody);
 
 
-    
+
     //Shadows 
     glm::mat4 lightProjection, lightView;
     glm::mat4 lightSpaceMatrix;
-    float near_plane = 1.0f, far_plane = 7.5f;
-    lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-    lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
-    lightSpaceMatrix = lightProjection * lightView;
+float near_plane = 1.0f, far_plane = 20.0f;
+float ortho_size = 15.0f;
+lightProjection = glm::ortho(-ortho_size, ortho_size, -ortho_size, ortho_size, near_plane, far_plane);
+lightView = glm::lookAt(lightPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0, 1.0, 0.0));
+lightSpaceMatrix = lightProjection * lightView;
     // renderSceneToDepthMap(XPBD_SoftBody, ourModel);
+    
 
 
 
+    ShadowMapDepth->use();
+    ShadowMapDepth->setMat4("lightSpaceMatrix",lightSpaceMatrix);
+
+            glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, DepthMapFBO);
+            glClear(GL_DEPTH_BUFFER_BIT);
+            renderScene(ShadowMapDepth,XPBD_SoftBody,ourModel);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, depthMap);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+                
+        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // render
         // ------
        
-        glClearColor(0.0f, 0.05f, 0.05f, 0.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -358,6 +440,10 @@ int main()
     floorShader->setVec3("lightColor", lightColor);
     floorShader->setVec3("objectColor", objectColor);
     floorShader->setVec3("viewPos", camera.Position);
+glActiveTexture(GL_TEXTURE1);
+glBindTexture(GL_TEXTURE_2D, depthMap);
+    floorShader->setInt("shadowMap", 1);
+    floorShader->setMat4("lightSpaceMatrix",lightSpaceMatrix);
     glm::mat4 floor_model = glm::mat4(1.0f);
     floorShader->setMat4("model", floor_model);
 
@@ -371,7 +457,8 @@ int main()
         ourShader.use();
 
         // view/projection transformations
-
+        ourShader.setInt("shadowMap", 1);
+        ourShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
         ourShader.setVec3("lightPos",lightPos);
@@ -388,7 +475,8 @@ int main()
 
         // Render objects 
         // renderSoftBody(SoftBody,ourModel,ourShader);
-        renderSoftBodyXPBD(XPBD_SoftBody,ourModel,ourShader);
+        // renderSoftBodyXPBD(XPBD_SoftBody,ourModel,ourShader);
+        renderSceneMain(&ourShader,XPBD_SoftBody,ourModel);
         // ourModel.Draw(ourShader);
 
         // Render floor 
@@ -455,6 +543,9 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     // make sure the viewport matches the new window dimensions; note that width and 
     // height will be significantly larger than specified on retina displays.
+
+    SCR_WIDTH = width;
+    SCR_HEIGHT = height;
     glViewport(0, 0, width, height);
 }
 
