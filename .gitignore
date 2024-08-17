@@ -1,3 +1,9 @@
 build/
 LIBS/
 .vscode/
+_deps/
+bin/
+CMakeFiles/
+cmake_install.cmake
+Cmakecache.txt
+Makefile

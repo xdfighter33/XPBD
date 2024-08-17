@@ -253,10 +253,10 @@ void preserveVolume() {
             ApplyGravity();
             predictPosition();
         for(int i = 0; i < solveIt; i++){
-            stretchingConstraint();
+            // stretchingConstraint();
             // solveShearingConstraints();
-            preserveVolume();
-            solveShapeMatching();
+            // preserveVolume();
+            // solveShapeMatching();
             }
 
         GroundConstraint();
