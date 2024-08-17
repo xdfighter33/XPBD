@@ -2,6 +2,9 @@
 
 This project implements a soft body simulation using Extended Position Based Dynamics (XPBD) with OpenGL rendering. It features a real-time, interactive 3D environment where users can manipulate various parameters of the soft body simulation.
 Using Mullers Papers
+[Documentation]([https://docs.example.com](https://matthias-research.github.io/pages/publications/XPBD.pdf))
+
+
 ## Features
 
 - Soft body simulation using XPBD
