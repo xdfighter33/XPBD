@@ -85,21 +85,20 @@ glm::mat3 normalizeMatrix(const glm::mat3& A) {
 
 
 
+float trace(const glm::mat3& m) {
+    return m[0][0] + m[1][1] + m[2][2];
+}
 
-glm::mat3 Polar_decomp(glm::mat3 v){
-    //V is your input matrix 
-
-    glm::mat3 Q; // Rotation Matrix 
-    glm::mat3 P; // Streching Matirx 
-    
-    glm::vec3 scale;
-    glm::quat rotation;
-    glm::vec3 translation;
-    glm::vec3 skew;
-    glm::vec4 perspective;
-
-    bool success = glm::decompose(glm::mat4(v), scale, rotation, translation, skew, perspective);
-
-
-    
+glm::mat3 cofactor(const glm::mat3& m) {
+    glm::mat3 result;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            result[i][j] = glm::determinant(glm::mat2(
+                m[(i + 1) % 3][(j + 1) % 3], m[(i + 1) % 3][(j + 2) % 3],
+                m[(i + 2) % 3][(j + 1) % 3], m[(i + 2) % 3][(j + 2) % 3]
+            ));
+            if ((i + j) % 2 == 1) result[i][j] = -result[i][j];
+        }
+    }
+    return result;
 }

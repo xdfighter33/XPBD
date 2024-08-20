@@ -1,3 +1,4 @@
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 // 
@@ -206,8 +207,8 @@ void processInput(GLFWwindow *window, SoftBodyXPBD& sim);
 
 
 // settings
- unsigned int SCR_WIDTH = 800;
- unsigned int SCR_HEIGHT = 600;
+ unsigned int SCR_WIDTH = 1080;
+ unsigned int SCR_HEIGHT = 1980;
 
 // camera
 Camera camera(glm::vec3(0.0f, 1.0f, 7.0f));
@@ -310,15 +311,15 @@ int main()
     // SoftBodyPBD SoftBody(ourModel);
 
     // Set XPBD
-    float n = 90;
+    float n = 120;
     float dt = 1.0f / n;// 60 fps 
-    float it = 20;
+    float it = 40;
 
     SoftBodyXPBD XPBD_SoftBody(ourModel,dt,it);
     // Load Floor 
     setupFloor();
     // draw in wireframe
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     // SoftBody.setPosition(glm::vec3(0,2,0));
     XPBD_SoftBody.setPosition(glm::vec3(0,2,0));
 
@@ -329,9 +330,12 @@ int main()
     // render loop
     // -----------
 
-    float t = 1;
-    float shape = 0.5f;
-
+    float t = 0.5f;
+    float shape = 0.01f;
+    float shear = 1;
+    float volume{0.2};
+    float p_threshold(0.1f);
+    float pCreep(0.1f);
 
     setupShadowMap();
     while (!glfwWindowShouldClose(window))
@@ -341,8 +345,6 @@ int main()
         ImGui::NewFrame();
         
 
-                    float shear = 0;
-                    float volume = 0;
 
                 if(window_instruments)
         {       
@@ -357,6 +359,8 @@ int main()
             ImGui::SliderFloat("Shear Constraint", &shear, 0.0f,1.0f);          
             ImGui::Text("Shape matching");
             ImGui::SliderFloat("Shape matching", &shape, 0.0f,1.0f);
+            ImGui::SliderFloat("plastic creep", &pCreep, 0.0f, 1.0f);
+            ImGui::SliderFloat("plastic threshold ", &p_threshold, 0.0f, 1.0f);
             ImGui::Text("System Settings");
             ImGui::SliderFloat("Iterations",&its,0.0f,100.0f);
             ImGui::SliderFloat("FPS",&fps,5,120);
@@ -366,7 +370,8 @@ int main()
             XPBD_SoftBody.set_vol(volume);
             XPBD_SoftBody.setShearingConstraints(shear);
             XPBD_SoftBody.setShapeFactor(shape);
-
+            XPBD_SoftBody.setPlasticCreep(pCreep);
+            XPBD_SoftBody.setPlasticThreshold(p_threshold);
 
             n = fps;
             it = its;
